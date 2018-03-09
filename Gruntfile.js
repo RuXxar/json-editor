@@ -85,44 +85,51 @@ module.exports = function(grunt) {
         indent: 2,
         nonbsp: true,
         nonew: true,
-        immed: true,
-        latedef: true
+        immed: true
       },
-      beforeconcat: [
-        'src/class.js',
-        'src/ie9.js',
-        
-        // Utils like extend, each, and trigger
-        'src/utilities.js',
-        
-        // The main JSONEditor class
-        'src/core.js',
+      beforeconcat: {
+        options: {
+          latedef: true
+        },
+        files: {
+          src: [
+          'src/class.js',
+          'src/ie9.js',
 
-        // JSON Schema validator
-        'src/validator.js',
-        
-        // All the editors
-        'src/editor.js',
-        'src/editors/*.js',
-        
-        // All the themes and iconlibs
-        'src/theme.js',
-        'src/themes/*.js',
-        'src/iconlib.js',
-        'src/iconlibs/*.js',
+          // Utils like extend, each, and trigger
+          'src/utilities.js',
 
-        // The JS templating engines
-        'src/templates/*.js',
+          // The main JSONEditor class
+          'src/core.js',
 
-        // Set the defaults
-        'src/defaults.js',
-        
-        // Wrapper for $.fn style initialization
-        'src/jquery.js'
-      ],
+          // JSON Schema validator
+          'src/validator.js',
+
+          // All the editors
+          'src/editor.js',
+          'src/editors/*.js',
+
+          // All the themes and iconlibs
+          'src/theme.js',
+          'src/themes/*.js',
+          'src/iconlib.js',
+          'src/iconlibs/*.js',
+
+          // The JS templating engines
+          'src/templates/*.js',
+
+          // Set the defaults
+          'src/defaults.js',
+
+          // Wrapper for $.fn style initialization
+          'src/jquery.js'
+          ]
+        }
+      },
       afterconcat: {
         options: {
-          undef: true
+          undef: true,
+          latedef: false
         },
         files: {
           src: ['dist/jsoneditor.js']
@@ -139,5 +146,4 @@ module.exports = function(grunt) {
 
   // Default task.
   grunt.registerTask('default', ['jshint:beforeconcat','concat_sourcemap','jshint:afterconcat','uglify']);
-
 };
