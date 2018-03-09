@@ -16,7 +16,7 @@ JSONEditor.defaults.editors.string = JSONEditor.AbstractEditor.extend({
       return;
     }
     
-    if(value === null) value = "";
+    if(value === null || typeof value === 'undefined') value = "";
     else if(typeof value === "object") value = JSON.stringify(value);
     else if(typeof value !== "string") value = ""+value;
     
@@ -117,6 +117,7 @@ JSONEditor.defaults.editors.string = JSONEditor.AbstractEditor.extend({
           'ejs',
           'erlang',
           'golang',
+          'groovy',
           'handlebars',
           'haskell',
           'haxe',

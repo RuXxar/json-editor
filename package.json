@@ -2,7 +2,7 @@
   "name": "json-editor",
   "title": "JSONEditor",
   "description": "JSON Schema based editor",
-  "version": "0.7.21",
+  "version": "0.7.28",
   "main": "dist/jsoneditor.js",
   "author": {
     "name": "Jeremy Dorn",
@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "grunt": "1.0.2",
-    "grunt-concat-sourcemap": "^0.4.3",
+    "grunt-contrib-concat": "~1.0.0",
     "grunt-contrib-jshint": "1.1.0",
     "grunt-contrib-uglify": "3.3.0",
     "grunt-contrib-watch": "1.0.0"

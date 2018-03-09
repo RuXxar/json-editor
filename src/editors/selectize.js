@@ -1,4 +1,4 @@
-JSONEditor.defaults.editors.select = JSONEditor.AbstractEditor.extend({
+JSONEditor.defaults.editors.selectize = JSONEditor.AbstractEditor.extend({
   setValue: function(value,initial) {
     value = this.typecast(value||'');
 
@@ -13,7 +13,11 @@ JSONEditor.defaults.editors.select = JSONEditor.AbstractEditor.extend({
     }
 
     this.input.value = this.enum_options[this.enum_values.indexOf(sanitized)];
-    if(this.select2) this.select2.select2('val',this.input.value);
+
+    if(this.selectize) {
+      this.selectize[0].selectize.addItem(sanitized);
+    }
+
     this.value = sanitized;
     this.onChange();
   },
@@ -61,34 +65,20 @@ JSONEditor.defaults.editors.select = JSONEditor.AbstractEditor.extend({
     var i;
 
     // Enum options enumerated
-    if(this.schema["enum"]) {
+    if(this.schema.enum) {
       var display = this.schema.options && this.schema.options.enum_titles || [];
 
-      $each(this.schema["enum"],function(i,option) {
+      $each(this.schema.enum,function(i,option) {
         self.enum_options[i] = ""+option;
         self.enum_display[i] = ""+(display[i] || option);
         self.enum_values[i] = self.typecast(option);
       });
-
-      if(!this.isRequired()){
-        self.enum_display.unshift(' ');
-        self.enum_options.unshift('undefined');
-        self.enum_values.unshift(undefined);
-      }
-
     }
     // Boolean
     else if(this.schema.type === "boolean") {
       self.enum_display = this.schema.options && this.schema.options.enum_titles || ['true','false'];
-      self.enum_options = ['1',''];
+      self.enum_options = ['1','0'];
       self.enum_values = [true,false];
-
-      if(!this.isRequired()){
-        self.enum_display.unshift(' ');
-        self.enum_options.unshift('undefined');
-        self.enum_values.unshift(undefined);
-      }
-
     }
     // Dynamic Enum
     else if(this.schema.enumSource) {
@@ -181,46 +171,36 @@ JSONEditor.defaults.editors.select = JSONEditor.AbstractEditor.extend({
   onInputChange: function() {
     var val = this.input.value;
 
-    var new_val;
-    // Invalid option, use first option instead
+    var sanitized = val;
     if(this.enum_options.indexOf(val) === -1) {
-      new_val = this.enum_values[0];
-    }
-    else {
-      new_val = this.enum_values[this.enum_options.indexOf(val)];
+      sanitized = this.enum_options[0];
     }
 
-    // If valid hasn't changed
-    if(new_val === this.value) return;
-
-    // Store new value and propogate change event
-    this.value = new_val;
+    this.value = this.enum_values[this.enum_options.indexOf(val)];
     this.onChange(true);
   },
-  setupSelect2: function() {
-    // If the Select2 library is loaded use it when we have lots of items
-    if(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2 && (this.enum_options.length > 2 || (this.enum_options.length && this.enumSource))) {
-      var options = $extend({},JSONEditor.plugins.select2);
-      if(this.schema.options && this.schema.options.select2_options) options = $extend(options,this.schema.options.select2_options);
-      this.select2 = window.jQuery(this.input).select2(options);
-      var self = this;
-      this.select2.on('select2-blur',function() {
-        self.input.value = self.select2.select2('val');
-        self.onInputChange();
-      });
-      this.select2.on('change',function() {
-        self.input.value = self.select2.select2('val');
-        self.onInputChange();
-      });
+  setupSelectize: function() {
+    // If the Selectize library is loaded use it when we have lots of items
+    var self = this;
+    if(window.jQuery && window.jQuery.fn && window.jQuery.fn.selectize && (this.enum_options.length >= 2 || (this.enum_options.length && this.enumSource))) {
+      var options = $extend({},JSONEditor.plugins.selectize);
+      if(this.schema.options && this.schema.options.selectize_options) options = $extend(options,this.schema.options.selectize_options);
+      this.selectize = window.jQuery(this.input).selectize($extend(options,
+      {
+        create: true,
+        onChange : function() {
+          self.onInputChange();
+        }
+      }));
     }
     else {
-      this.select2 = null;
+      this.selectize = null;
     }
   },
   postBuild: function() {
     this._super();
     this.theme.afterInputReady(this.input);
-    this.setupSelect2();
+    this.setupSelectize();
   },
   onWatchedFieldChange: function() {
     var self = this, vars, j;
@@ -237,65 +217,57 @@ JSONEditor.defaults.editors.select = JSONEditor.AbstractEditor.extend({
           select_options = select_options.concat(this.enumSource[i]);
           select_titles = select_titles.concat(this.enumSource[i]);
         }
-        else {
-          var items = [];
-          // Static list of items
-          if(Array.isArray(this.enumSource[i].source)) {
-            items = this.enumSource[i].source;
-            // A watched field
-          } else {
-            items = vars[this.enumSource[i].source];
+        // A watched field
+        else if(vars[this.enumSource[i].source]) {
+          var items = vars[this.enumSource[i].source];
+
+          // Only use a predefined part of the array
+          if(this.enumSource[i].slice) {
+            items = Array.prototype.slice.apply(items,this.enumSource[i].slice);
           }
-
-          if(items) {
-            // Only use a predefined part of the array
-            if(this.enumSource[i].slice) {
-              items = Array.prototype.slice.apply(items,this.enumSource[i].slice);
-            }
-            // Filter the items
-            if(this.enumSource[i].filter) {
-              var new_items = [];
-              for(j=0; j<items.length; j++) {
-                if(this.enumSource[i].filter({i:j,item:items[j],watched:vars})) new_items.push(items[j]);
-              }
-              items = new_items;
-            }
-
-            var item_titles = [];
-            var item_values = [];
+          // Filter the items
+          if(this.enumSource[i].filter) {
+            var new_items = [];
             for(j=0; j<items.length; j++) {
-              var item = items[j];
+              if(this.enumSource[i].filter({i:j,item:items[j]})) new_items.push(items[j]);
+            }
+            items = new_items;
+          }
 
-              // Rendered value
-              if(this.enumSource[i].value) {
-                item_values[j] = this.enumSource[i].value({
-                  i: j,
-                  item: item
-                });
-              }
-              // Use value directly
-              else {
-                item_values[j] = items[j];
-              }
+          var item_titles = [];
+          var item_values = [];
+          for(j=0; j<items.length; j++) {
+            var item = items[j];
 
-              // Rendered title
-              if(this.enumSource[i].title) {
-                item_titles[j] = this.enumSource[i].title({
-                  i: j,
-                  item: item
-                });
-              }
-              // Use value as the title also
-              else {
-                item_titles[j] = item_values[j];
-              }
+            // Rendered value
+            if(this.enumSource[i].value) {
+              item_values[j] = this.enumSource[i].value({
+                i: j,
+                item: item
+              });
+            }
+            // Use value directly
+            else {
+              item_values[j] = items[j];
             }
 
-            // TODO: sort
-
-            select_options = select_options.concat(item_values);
-            select_titles = select_titles.concat(item_titles);
+            // Rendered title
+            if(this.enumSource[i].title) {
+              item_titles[j] = this.enumSource[i].title({
+                i: j,
+                item: item
+              });
+            }
+            // Use value as the title also
+            else {
+              item_titles[j] = item_values[j];
+            }
           }
+
+          // TODO: sort
+
+          select_options = select_options.concat(item_values);
+          select_titles = select_titles.concat(item_titles);
         }
       }
 
@@ -306,15 +278,12 @@ JSONEditor.defaults.editors.select = JSONEditor.AbstractEditor.extend({
       this.enum_display = select_titles;
       this.enum_values = select_options;
 
-      if(this.select2) {
-        this.select2.select2('destroy');
-      }
-
       // If the previous value is still in the new select options, stick with it
       if(select_options.indexOf(prev_value) !== -1) {
         this.input.value = prev_value;
         this.value = prev_value;
       }
+
       // Otherwise, set the value to the first select option
       else {
         this.input.value = select_options[0];
@@ -324,49 +293,55 @@ JSONEditor.defaults.editors.select = JSONEditor.AbstractEditor.extend({
         this.jsoneditor.notifyWatchers(this.path);
       }
 
-      this.setupSelect2();
-    }
+      if(this.selectize) {
+        // Update the Selectize options
+        this.updateSelectizeOptions(select_options);
+      }
+      else {
+        this.setupSelectize();
+      }
 
-    this._super();
+      this._super();
+    }
+  },
+  updateSelectizeOptions: function(select_options) {
+    var selectized = this.selectize[0].selectize,
+        self = this;
+
+    selectized.off();
+    selectized.clearOptions();
+    for(var n in select_options) {
+      selectized.addOption({value:select_options[n],text:select_options[n]});
+    }
+    selectized.addItem(this.value);
+    selectized.on('change',function() {
+      self.onInputChange();
+    });
   },
   enable: function() {
     if(!this.always_disabled) {
       this.input.disabled = false;
-      if(this.select2) this.select2.select2("enable",true);
+      if(this.selectize) {
+        this.selectize[0].selectize.unlock();
+      }
     }
     this._super();
   },
   disable: function() {
     this.input.disabled = true;
-    if(this.select2) this.select2.select2("enable",false);
+    if(this.selectize) {
+      this.selectize[0].selectize.lock();
+    }
     this._super();
   },
   destroy: function() {
     if(this.label && this.label.parentNode) this.label.parentNode.removeChild(this.label);
     if(this.description && this.description.parentNode) this.description.parentNode.removeChild(this.description);
     if(this.input && this.input.parentNode) this.input.parentNode.removeChild(this.input);
-    if(this.select2) {
-      this.select2.select2('destroy');
-      this.select2 = null;
+    if(this.selectize) {
+      this.selectize[0].selectize.destroy();
+      this.selectize = null;
     }
-
     this._super();
-  },
-  showValidationErrors: function(errors) {
-    var self = this;
-
-    var messages = [];
-    $each(errors, function(i,error) {
-      if(error.path === self.path) {
-        messages.push(error.message);
-      }
-    });
-
-    if(messages.length) {
-      this.theme.addInputError(this.input, messages.join('. ') + '.');
-    }
-    else {
-      this.theme.removeInputError(this.input);
-    }
   }
 });
